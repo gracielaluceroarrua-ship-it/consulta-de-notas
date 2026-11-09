@@ -38,6 +38,9 @@ def cargar_datos(sheet_id, sheet_name):
   sheet_encoded = urllib.parse.quote(sheet_name)
   url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
   df = pd.read_csv(url)
+  
+  # LIMPIEZA CLAVE: Normalizamos los nombres de las columnas (quitamos espacios y pasamos a mayúsculas)
+  df.columns = df.columns.astype(str).str.strip().str.upper()
   return df
 
 
@@ -65,21 +68,38 @@ if exito_carga:
       encontrado = False
 
       for _, row in df.iterrows():
+        # Obtenemos el DNI de forma segura asegurando que exista la columna
         celda_dni = str(row.get("DNI", ""))
         dni_fila = "".join(filter(str.isdigit, celda_dni))
 
         if dni_fila == q_dni:
           encontrado = True
           st.success("¡Registro encontrado!")
-          
-          # Acceso directo por nombre de columna (ignora cualquier columna fantasma o sin nombre)
-          st.markdown(f"### {row.get('Alumno', 'N/A')}")
-          st.markdown(f"**Carrera:** {row.get('Carrera', 'N/A')}")
-          st.markdown(f"**Parcial:** {row.get('Parcial', 'N/A')}")
-          st.markdown(f"**TP 2 (Entrega Final):** {row.get('TP2 (ENTREGA FINAL)', 'N/A')}")
-          st.markdown(f"**Presentación:** {row.get('PRESENTACIÓN', 'N/A')}")
-          st.markdown(f"**Promedio Final:** {row.get('PROMEDIO FINAL', 'N/A')}")
-          st.markdown(f"**Condición:** **{row.get('CONDICIÓN', 'Sin calificar')}**")
+
+          # Función auxiliar para extraer el valor y manejar celdas vacías/NaN
+          def obtener_valor(columna, defecto="Sin calificar"):
+            val = row.get(columna)
+            if pd.isna(val) or str(val).strip() == "" or str(val).lower() == "nan":
+              return defecto
+            return val
+
+          # Extraemos los campos usando los nombres normalizados en mayúsculas
+          alumno = obtener_valor("ALUMNO", "N/A")
+          carrera = obtener_valor("CARRERA", "N/A")
+          parcial = obtener_valor("PARCIAL", "-")
+          tp2 = obtener_valor("TP2 (ENTREGA FINAL)", obtener_valor("TP 2", "-"))
+          presentacion = obtener_valor("PRESENTACIÓN", obtener_valor("PRESENTACION", "-"))
+          promedio = obtener_valor("PROMEDIO FINAL", "-")
+          condicion = obtener_valor("CONDICIÓN", obtener_valor("CONDICION", "Sin calificar"))
+
+          # Mostramos los resultados
+          st.markdown(f"### {alumno}")
+          st.markdown(f"**Carrera:** {carrera}")
+          st.markdown(f"**Parcial:** {parcial}")
+          st.markdown(f"**TP 2 (Entrega Final):** {tp2}")
+          st.markdown(f"**Presentación:** {presentacion}")
+          st.markdown(f"**Promedio Final:** {promedio}")
+          st.markdown(f"**Condición:** **{condicion}**")
           break
 
       if not encontrado:
