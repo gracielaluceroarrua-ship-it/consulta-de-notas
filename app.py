@@ -13,7 +13,7 @@ st.markdown(
     " académico."
 )
 
-# Diccionario con las opciones actualizadas y sus planillas correspondientes
+# Diccionario con las opciones y sus planillas
 PLANILLAS = {
     "anuales": {
         "id": "1TATrnl23SVmyjK_d5aCUBR1h-5GtMJbbCJeGipakLRU",
@@ -25,14 +25,14 @@ PLANILLAS = {
     },
 }
 
-# Selector desplegable de curso
+# Selector desplegable
 comision_seleccionada = st.selectbox(
     "Seleccione la opción:", list(PLANILLAS.keys())
 )
 datos_comision = PLANILLAS[comision_seleccionada]
 
 
-# Función para cargar datos manejando correctamente espacios y tildes en la URL
+# Función para cargar datos
 @st.cache_data(ttl=60)
 def cargar_datos(sheet_id, sheet_name):
   sheet_encoded = urllib.parse.quote(sheet_name)
@@ -41,7 +41,7 @@ def cargar_datos(sheet_id, sheet_name):
   return df
 
 
-# Carga de datos con indicador visual
+# Carga de datos
 try:
   with st.spinner(f"Cargando datos de {comision_seleccionada}..."):
     df = cargar_datos(datos_comision["id"], datos_comision["sheet"])
@@ -64,30 +64,22 @@ if exito_carga:
       q_dni = "".join(filter(str.isdigit, str(dni_ingresado)))
       encontrado = False
 
-      for index, row in df.iterrows():
-        celda_dni = str(row.iloc[1])
+      for _, row in df.iterrows():
+        celda_dni = str(row.get("DNI", ""))
         dni_fila = "".join(filter(str.isdigit, celda_dni))
 
         if dni_fila == q_dni:
           encontrado = True
           st.success("¡Registro encontrado!")
-          st.markdown(f"### {row.iloc[0]}")  # Nombre (Columna A)
-          st.markdown(f"**Carrera:** {row.iloc[2]}")  # Carrera (Columna C)
-          st.markdown(
-              f"**Parcial:** {row.iloc[6] if len(row) > 6 else 'N/A'}"
-          )  # Columna G
-          st.markdown(
-              f"**Entrega Final:** {row.iloc[7] if len(row) > 7 else 'N/A'}"
-          )  # Columna H
-          st.markdown(
-              f"**Presentación:** {row.iloc[8] if len(row) > 8 else 'N/A'}"
-          )  # Columna I
-          st.markdown(
-              f"**Promedio Final:** {row.iloc[9] if len(row) > 9 else 'N/A'}"
-          )  # Columna J
-          st.markdown(
-              f"**Condición:** **{row.iloc[10] if len(row) > 10 else 'Sin calificar'}**"
-          )  # Columna K
+          
+          # Acceso directo por nombre de columna (ignora cualquier columna fantasma o sin nombre)
+          st.markdown(f"### {row.get('Alumno', 'N/A')}")
+          st.markdown(f"**Carrera:** {row.get('Carrera', 'N/A')}")
+          st.markdown(f"**Parcial:** {row.get('Parcial', 'N/A')}")
+          st.markdown(f"**TP 2 (Entrega Final):** {row.get('TP2 (ENTREGA FINAL)', 'N/A')}")
+          st.markdown(f"**Presentación:** {row.get('PRESENTACIÓN', 'N/A')}")
+          st.markdown(f"**Promedio Final:** {row.get('PROMEDIO FINAL', 'N/A')}")
+          st.markdown(f"**Condición:** **{row.get('CONDICIÓN', 'Sin calificar')}**")
           break
 
       if not encontrado:
