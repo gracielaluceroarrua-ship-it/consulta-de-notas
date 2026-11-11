@@ -38,9 +38,6 @@ def cargar_datos(sheet_id, sheet_name):
   sheet_encoded = urllib.parse.quote(sheet_name)
   url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
   df = pd.read_csv(url)
-  
-  # LIMPIEZA CLAVE: Normalizamos los nombres de las columnas (quitamos espacios y pasamos a mayúsculas)
-  df.columns = df.columns.astype(str).str.strip().str.upper()
   return df
 
 
@@ -68,29 +65,36 @@ if exito_carga:
       encontrado = False
 
       for _, row in df.iterrows():
-        # Obtenemos el DNI de forma segura asegurando que exista la columna
-        celda_dni = str(row.get("DNI", ""))
+        # Buscamos la columna de DNI de forma flexible
+        celda_dni = ""
+        for col in row.index:
+          if "DNI" in str(col).upper():
+            celda_dni = str(row.get(col, ""))
+            break
+            
         dni_fila = "".join(filter(str.isdigit, celda_dni))
 
         if dni_fila == q_dni:
           encontrado = True
           st.success("¡Registro encontrado!")
 
-          # Función auxiliar para extraer el valor y manejar celdas vacías/NaN
-          def obtener_valor(columna, defecto="Sin calificar"):
-            val = row.get(columna)
-            if pd.isna(val) or str(val).strip() == "" or str(val).lower() == "nan":
-              return defecto
-            return val
+          # Función auxiliar para buscar columnas por palabras clave (ignora mayúsculas, tildes y caracteres ocultos)
+          def obtener_valor_flexible(keyword, defecto):
+            for col in row.index:
+              if keyword in str(col).upper():
+                val = row.get(col)
+                if not (pd.isna(val) or str(val).strip() == "" or str(val).lower() == "nan"):
+                  return val
+            return defecto
 
-          # Extraemos los campos usando los nombres normalizados en mayúsculas
-          alumno = obtener_valor("ALUMNO", "N/A")
-          carrera = obtener_valor("CARRERA", "N/A")
-          parcial = obtener_valor("PARCIAL", "-")
-          tp2 = obtener_valor("TP2 (ENTREGA FINAL)", obtener_valor("TP 2", "-"))
-          presentacion = obtener_valor("PRESENTACIÓN", obtener_valor("PRESENTACION", "-"))
-          promedio = obtener_valor("PROMEDIO FINAL", "-")
-          condicion = obtener_valor("CONDICIÓN", obtener_valor("CONDICION", "Sin calificar"))
+          # Extracción segura e independiente de formato
+          alumno = obtener_valor_flexible("ALUMNO", "N/A")
+          carrera = obtener_valor_flexible("CARRERA", "N/A")
+          parcial = obtener_valor_flexible("PARCIAL", "-")
+          tp2 = obtener_valor_flexible("TP2", obtener_valor_flexible("ENTREGA FINAL", "-"))
+          presentacion = obtener_valor_flexible("PRESENTACIÓN", obtener_valor_flexible("PRESENTACION", "-"))
+          promedio = obtener_valor_flexible("PROMEDIO", "-")
+          condicion = obtener_valor_flexible("CONDICIÓN", obtener_valor_flexible("CONDICION", "Sin calificar"))
 
           # Mostramos los resultados
           st.markdown(f"### {alumno}")
